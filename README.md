@@ -6,7 +6,7 @@ Esta é a versão 2, reescrita em React + TypeScript e pensada primeiro para cel
 
 ## O que tem
 
-- **Caixas**: 221 caixas em 10 categorias, com preço, itens, desgaste e chance de cada item.
+- **Caixas**: 183 caixas em 9 categorias, com preço, itens, desgaste e chance de cada item. Não há caixas gratuitas, e só as de mineração custam menos de 0,50.
 - **Roleta**: abre de 1 a 5 caixas por vez, com modo rápido.
 - **Inventário**: venda de itens pelo valor de tabela e estatísticas.
 - **Aprimoramento**: aposte até 4 itens (e saldo) por um item melhor.
@@ -43,6 +43,6 @@ As caixas sem arte oficial são desenhadas pelo próprio app, com o item mais va
 ## Regras
 
 - **Abertura**: o item é sorteado com as chances da tabela da caixa. As cartas que passam na roleta são só enfeite.
-- **Aprimoramento**: chance = valor apostado ÷ valor do alvo × 0,95, com teto de 90%.
+- **Aprimoramento**: chance = valor apostado ÷ valor do alvo × 0,95, com teto de 90%. O roll vai de 0 a 100 e é a posição do ponteiro na volta, no sentido horário: você ganha se ele parar abaixo da chance.
 - **Contrato**: o multiplicador sobre o valor entregue segue a tabela coletada (de cerca de 30% a 381%); você recebe o item mais caro que cabe no valor sorteado.
 - **Batalha**: todos abrem as mesmas caixas com as mesmas chances. A equipe com a maior soma (ou a menor, no modo invertido) recebe em saldo o valor de todos os itens, dividido entre os membros. Empates são decididos por sorteio.

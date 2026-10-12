@@ -11,6 +11,8 @@ const MAX_ITEMS = 4;
 const MULTS = [1.5, 2, 3, 5, 10, 20];
 const R = 88;
 const CIRC = 2 * Math.PI * R;
+// o roll vai de 0 a 100 e é a posição do ponteiro na volta, no sentido horário
+const roll100 = (v: number) => (v * 100).toFixed(2).replace('.', ',');
 
 export function Upgrade() {
   const { byPrice } = getDb();
@@ -26,6 +28,7 @@ export function Upgrade() {
   const [phase, setPhase] = useState<'idle' | 'spinning' | 'win' | 'lose'>('idle');
   const [angle, setAngle] = useState(0);
   const [played, setPlayed] = useState(0);
+  const [rolled, setRolled] = useState(0);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -77,6 +80,7 @@ export function Upgrade() {
     const roll = Math.random();
     const win = roll < chance;
     setPlayed(chance);
+    setRolled(roll);
     consume(picked);
     bump({ upgrades: 1, upgradeWins: win ? 1 : 0 });
     setPicked([]);
@@ -131,13 +135,18 @@ export function Upgrade() {
             </svg>
             <div className="gauge-pointer"
               style={{ transform: `rotate(${angle}deg)`, transitionDuration: `${fast ? 800 : 4000}ms` }} />
+            <span className="gauge-end gauge-end-0">0</span>
+            <span className="gauge-end gauge-end-100">100</span>
             <div className="gauge-center">
               {phase === 'win' && <b className="ok">Aprimorado!</b>}
               {phase === 'lose' && <b className="bad">Não foi desta vez</b>}
+              {(phase === 'win' || phase === 'lose') && (
+                <span>roll {roll100(rolled)} • ganhava abaixo de {roll100(played)}</span>
+              )}
               {(phase === 'idle' || phase === 'spinning') && (
                 <>
                   <strong>{target || busy ? pct(chance) : '—'}</strong>
-                  <span>chance</span>
+                  <span>{target && !busy ? `ganha com roll abaixo de ${roll100(chance)}` : 'chance'}</span>
                 </>
               )}
             </div>

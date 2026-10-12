@@ -30,7 +30,11 @@ const CATEGORIES = [
   ['isArchiveCase', 'archive', 'Arquivo'],
 ];
 // Nomes que remetem a pessoas reais
-const EXCLUDE_NAMES = ['Ice Spice', "Gaben's Yacht", 'Vasya'];
+const EXCLUDE_NAMES = ['Ice Spice', "Gaben's Yacht", 'Vasya', 'UFC 329: McGregor'];
+// Caixas gratuitas ficam de fora, e só as de mineração podem custar menos que isto
+const EXCLUDE_CATEGORIES = ['free'];
+const MIN_PRICE = 0.5;
+const CHEAP_CATEGORIES = ['mining'];
 const EXCLUDE_FLAGS = ['isBloggerCase', 'isProgamers', 'isTeamSpiritCase', 'isAvatarCase', 'isCategory'];
 
 const norm = (s) => s.replace(/\s+/g, ' ').trim();
@@ -93,13 +97,14 @@ function itemId(entry) {
   return items.length - 1;
 }
 
-const out = []; const skipped = { excluded: 0, inactive: 0, norange: 0, empty: 0 };
+const out = []; const skipped = { excluded: 0, inactive: 0, norange: 0, cheap: 0, empty: 0 };
 for (const c of cases) {
   if (EXCLUDE_FLAGS.some((f) => c[f]) || EXCLUDE_NAMES.includes(norm(c.ename || c.name || ''))) { skipped.excluded++; continue; }
   if (c.disabled || c.active === false) { skipped.inactive++; continue; }
   const cat = CATEGORIES.find(([flag]) => c[flag]);
   const range = ranges.get(c._id);
   if (!cat || !range) { skipped.norange++; continue; }
+  if (EXCLUDE_CATEGORIES.includes(cat[1]) || (!CHEAP_CATEGORIES.includes(cat[1]) && (c.price_eur ?? 0) < MIN_PRICE)) { skipped.cheap++; continue; }
   const drops = range.items.filter((i) => i.name && i.price_eur != null).map((i) => [itemId(i), +i.prob.toFixed(8)]);
   if (!drops.length) { skipped.empty++; continue; }
   drops.sort((a, b) => items[b[0]].p - items[a[0]].p);
