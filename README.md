@@ -8,6 +8,7 @@ Esta é a versão 2, reescrita em React + TypeScript e pensada primeiro para cel
 
 - **Caixas**: 183 caixas em 9 categorias, com preço, itens, desgaste e chance de cada item. Não há caixas gratuitas, e só as de mineração custam menos de 0,50.
 - **Roleta**: abre de 1 a 5 caixas por vez, com modo rápido.
+- **Abertura em lote**: 10, 50 ou 100 caixas de uma vez, em cartas que vão virando, com resumo de lucro ou prejuízo e venda em um toque.
 - **Inventário**: venda de itens pelo valor de tabela e estatísticas.
 - **Aprimoramento**: aposte até 4 itens (e saldo) por um item melhor.
 - **Contrato**: troque de 3 a 10 itens por um.

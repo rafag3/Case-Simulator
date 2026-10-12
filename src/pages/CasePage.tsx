@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { FlipGrid } from '../components/FlipGrid';
 import { Roulette } from '../components/Roulette';
 import { CaseArt, Empty, ItemCard, Price } from '../components/ui';
 import { getDb } from '../lib/catalog';
@@ -8,6 +9,10 @@ import { caseExpectedValue, rollCase, round2 } from '../lib/game';
 import { winSound } from '../lib/sound';
 import { FREE_COOLDOWN_MS, useStore } from '../store';
 import type { InvItem } from '../store';
+
+// até 5 caixas giram na roleta; acima disso, viram cartas
+const ROULETTE_COUNTS = [1, 2, 3, 4, 5];
+const CARD_COUNTS = [10, 50, 100];
 
 interface Spin {
   id: number;
@@ -58,25 +63,67 @@ export function CasePage({ id }: { id: string }) {
     setPhase('spinning');
   }
 
-  function onStripDone() {
+  function finish() {
     if (!c || !spin) return;
-    finished.current += 1;
-    if (finished.current < spin.winners.length) return;
     setPhase('done');
-    spin.winners.forEach((w) => pushDrop(w, c.id, true));
+    // em lotes grandes só os melhores drops vão para a faixa ao vivo
+    [...spin.winners].sort((a, b) => items[b].p - items[a].p).slice(0, 5).forEach((w) => pushDrop(w, c.id, true));
     const best = Math.max(...spin.winners.map((w) => items[w].p));
     winSound(best >= c.price * 2);
   }
 
+  function onStripDone() {
+    if (!spin) return;
+    finished.current += 1;
+    if (finished.current === spin.winners.length) finish();
+  }
+
   const kept = spin ? spin.granted.filter((g) => inv.some((i) => i.uid === g.uid)) : [];
-  const keptValue = round2(kept.reduce((s, g) => s + (getDb().itemByKey.get(g.key)?.p ?? 0), 0));
+  const priceOf = (g: InvItem) => getDb().itemByKey.get(g.key)?.p ?? 0;
+  const keptValue = round2(kept.reduce((s, g) => s + priceOf(g), 0));
+  const cards = spin !== null && spin.winners.length > ROULETTE_COUNTS.length;
+  const dropped = spin ? round2(spin.winners.reduce((s, w) => s + items[w].p, 0)) : 0;
+  const paid = spin && c ? round2(c.price * spin.winners.length) : 0;
+  const below = c ? kept.filter((g) => priceOf(g) < c.price) : [];
 
   return (
     <div className="page">
       <a className="back" href="#/">‹ Voltar</a>
       <h1 className="title">{c.name}</h1>
 
-      {spin ? (
+      {spin && cards && (
+        <div className="result">
+          <div className="summary">
+            <span>{spin.winners.length} caixas por <Price value={paid} /></span>
+            {phase === 'done' ? (
+              <>
+                <span>Saíram <Price value={dropped} /></span>
+                <b className={dropped >= paid ? 'ok' : 'bad'}>
+                  {dropped >= paid ? 'Lucro' : 'Prejuízo'} de <Price value={round2(Math.abs(dropped - paid))} />
+                </b>
+              </>
+            ) : (
+              <span>Virando as cartas…</span>
+            )}
+          </div>
+          <div className="result-actions">
+            <button className="btn btn-ghost" disabled={phase !== 'done' || kept.length === 0}
+              onClick={() => sell(kept.map((g) => g.uid))}>
+              Vender tudo {phase === 'done' && <Price value={keptValue} />}
+            </button>
+            <button className="btn btn-ghost" disabled={phase !== 'done' || below.length === 0}
+              title="Vende os itens que valem menos que o preço de uma caixa"
+              onClick={() => sell(below.map((g) => g.uid))}>
+              Vender os que valem menos de <Price value={c.price} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {spin && cards ? (
+        <FlipGrid key={spin.id} winners={spin.winners} fast={fast} onDone={finish}
+          dim={spin.granted.map((g) => phase === 'done' && !inv.some((i) => i.uid === g.uid))} />
+      ) : spin ? (
         <div className={`stage stage-${spin.winners.length}`}>
           {spin.winners.map((w, i) => (
             <Roulette key={`${spin.id}-${i}`} caseDef={c} winner={w} fast={fast} delay={i * 120}
@@ -89,7 +136,7 @@ export function CasePage({ id }: { id: string }) {
         </div>
       )}
 
-      {phase === 'done' && spin && (
+      {phase === 'done' && spin && !cards && (
         <div className="result">
           <div className="grid grid-result">
             {spin.granted.map((g, i) => {
@@ -115,7 +162,7 @@ export function CasePage({ id }: { id: string }) {
       <div className="controls">
         {!isFree && (
           <div className="seg" role="group" aria-label="Quantidade de caixas">
-            {[1, 2, 3, 4, 5].map((k) => (
+            {[...ROULETTE_COUNTS, ...CARD_COUNTS].map((k) => (
               <button key={k} className={count === k ? 'is-active' : ''} disabled={phase === 'spinning'}
                 onClick={() => setCount(k)}>
                 {k}
