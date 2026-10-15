@@ -1,4 +1,5 @@
 import type { Catalog, CaseDef, Item } from '../types';
+import { curateCatalog } from './curate';
 
 export interface Db {
   catalog: Catalog;
@@ -15,18 +16,20 @@ let db: Db | null = null;
 export async function loadCatalog(): Promise<Db> {
   const res = await fetch(`${import.meta.env.BASE_URL}catalog.json`);
   if (!res.ok) throw new Error(`Não foi possível carregar o catálogo (${res.status})`);
-  const catalog = (await res.json()) as Catalog;
-  catalog.items.forEach((it, id) => {
+  const raw = (await res.json()) as Catalog;
+  raw.items.forEach((it, id) => {
     it.id = id;
     it.key = it.wear ? `${it.n} (${it.wear})` : it.n;
   });
+  const byPrice = [...raw.items].sort((a, b) => a.p - b.p);
+  const catalog = curateCatalog(raw, byPrice);
   db = {
     catalog,
     items: catalog.items,
     cases: catalog.cases,
     caseById: new Map(catalog.cases.map((c) => [c.id, c])),
     itemByKey: new Map(catalog.items.map((i) => [i.key, i])),
-    byPrice: [...catalog.items].sort((a, b) => a.p - b.p),
+    byPrice,
   };
   return db;
 }
