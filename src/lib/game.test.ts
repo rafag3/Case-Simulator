@@ -9,6 +9,7 @@ import {
   rollCase,
   simulateBattle,
   upgradeChance,
+  upgradeWins,
 } from './game';
 
 // gerador determinístico para os testes
@@ -92,6 +93,23 @@ describe('aprimoramento', () => {
     expect(upgradeChance(10, 100)).toBeCloseTo(0.095);
     expect(upgradeChance(10, 10.1)).toBe(0.9);
     expect(upgradeChance(0, 10)).toBe(0);
+  });
+
+  it('faixa vencedora no início ou no fim da volta', () => {
+    expect(upgradeWins(0.1, 0.25, 'low')).toBe(true);
+    expect(upgradeWins(0.25, 0.25, 'low')).toBe(false);
+    expect(upgradeWins(0.74, 0.25, 'high')).toBe(false);
+    expect(upgradeWins(0.75, 0.25, 'high')).toBe(true);
+    expect(upgradeWins(0.999, 0.25, 'high')).toBe(true);
+  });
+
+  it('a chance real é a mesma nos dois lados', () => {
+    const n = 100_000;
+    for (const side of ['low', 'high'] as const) {
+      let wins = 0;
+      for (let i = 0; i < n; i++) if (upgradeWins(i / n, 0.3, side)) wins++;
+      expect(wins / n).toBeCloseTo(0.3, 4);
+    }
   });
 
   it('na média o aprimoramento nunca devolve mais do que foi apostado', () => {

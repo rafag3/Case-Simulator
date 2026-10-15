@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Empty, ItemCard, Price } from '../components/ui';
 import { getDb, imgUrl } from '../lib/catalog';
 import { pct } from '../lib/format';
-import { itemForValue, round2, upgradeChance } from '../lib/game';
+import { itemForValue, round2, upgradeChance, upgradeWins, type UpgradeSide } from '../lib/game';
 import { loseSound, winSound } from '../lib/sound';
 import { useInventory, useStore } from '../store';
 import type { Item } from '../types';
@@ -13,6 +13,19 @@ const R = 88;
 const CIRC = 2 * Math.PI * R;
 // o roll vai de 0 a 100 e é a posição do ponteiro na volta, no sentido horário
 const roll100 = (v: number) => (v * 100).toFixed(2).replace('.', ',');
+const SIDE_KEY = 'upgrade-side';
+
+function loadSide(): UpgradeSide {
+  try {
+    return localStorage.getItem(SIDE_KEY) === 'high' ? 'high' : 'low';
+  } catch {
+    return 'low';
+  }
+}
+
+/** Texto da faixa vencedora, ex.: "abaixo de 25,00" ou "acima de 75,00". */
+const winRange = (chance: number, side: UpgradeSide) =>
+  side === 'low' ? `abaixo de ${roll100(chance)}` : `acima de ${roll100(1 - chance)}`;
 
 export function Upgrade() {
   const { byPrice } = getDb();
@@ -29,6 +42,8 @@ export function Upgrade() {
   const [angle, setAngle] = useState(0);
   const [played, setPlayed] = useState(0);
   const [rolled, setRolled] = useState(0);
+  const [side, setSide] = useState<UpgradeSide>(loadSide);
+  const [playedSide, setPlayedSide] = useState<UpgradeSide>(side);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -41,6 +56,18 @@ export function Upgrade() {
   const busy = phase === 'spinning';
   // durante o giro e no resultado, o medidor mostra a chance que valeu no sorteio
   const chance = phase === 'idle' ? (target ? upgradeChance(bet, target.p) : 0) : played;
+  const shownSide = phase === 'idle' ? side : playedSide;
+
+  function chooseSide(s: UpgradeSide) {
+    if (busy) return;
+    setSide(s);
+    setPhase('idle');
+    try {
+      localStorage.setItem(SIDE_KEY, s);
+    } catch {
+      /* sem armazenamento: vale só nesta visita */
+    }
+  }
 
   const options = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -78,15 +105,16 @@ export function Upgrade() {
     if (!target || bet <= 0 || busy || !charge(cash)) return;
     const goal = target;
     const roll = Math.random();
-    const win = roll < chance;
+    const win = upgradeWins(roll, chance, side);
     setPlayed(chance);
+    setPlayedSide(side);
     setRolled(roll);
     consume(picked);
     bump({ upgrades: 1, upgradeWins: win ? 1 : 0 });
     setPicked([]);
     setExtra(0);
     setPhase('spinning');
-    // o ponteiro para dentro do arco só quando o sorteio foi vencedor
+    // o ponteiro para dentro do arco (no lado escolhido) só quando o sorteio foi vencedor
     setAngle((a) => Math.ceil(a / 360) * 360 + 360 * 4 + roll * 360);
     // a entrega acontece mesmo se você sair da tela durante a animação
     window.setTimeout(() => {
@@ -131,7 +159,7 @@ export function Upgrade() {
             <svg viewBox="0 0 200 200">
               <circle cx="100" cy="100" r={R} className="gauge-bg" />
               <circle cx="100" cy="100" r={R} className="gauge-arc" strokeDasharray={`${chance * CIRC} ${CIRC}`}
-                transform="rotate(-90 100 100)" />
+                transform={`rotate(${-90 + (shownSide === 'high' ? (1 - chance) * 360 : 0)} 100 100)`} />
             </svg>
             <div className="gauge-pointer"
               style={{ transform: `rotate(${angle}deg)`, transitionDuration: `${fast ? 800 : 4000}ms` }} />
@@ -141,15 +169,23 @@ export function Upgrade() {
               {phase === 'win' && <b className="ok">Aprimorado!</b>}
               {phase === 'lose' && <b className="bad">Não foi desta vez</b>}
               {(phase === 'win' || phase === 'lose') && (
-                <span>roll {roll100(rolled)} • ganhava abaixo de {roll100(played)}</span>
+                <span>roll {roll100(rolled)} • ganhava {winRange(played, playedSide)}</span>
               )}
               {(phase === 'idle' || phase === 'spinning') && (
                 <>
                   <strong>{target || busy ? pct(chance) : '—'}</strong>
-                  <span>{target && !busy ? `ganha com roll abaixo de ${roll100(chance)}` : 'chance'}</span>
+                  <span>{target && !busy ? `ganha com roll ${winRange(chance, side)}` : 'chance'}</span>
                 </>
               )}
             </div>
+          </div>
+          <div className="side-toggle" role="radiogroup" aria-label="Lado da faixa vencedora">
+            {(['low', 'high'] as const).map((s) => (
+              <button key={s} role="radio" aria-checked={side === s} disabled={busy} onClick={() => chooseSide(s)}>
+                {s === 'low' ? 'Início' : 'Fim'}
+                {chance > 0 && (s === 'low' ? ` · 0–${Math.round(chance * 100)}` : ` · ${100 - Math.round(chance * 100)}–100`)}
+              </button>
+            ))}
           </div>
           <button className="btn btn-primary btn-lg" disabled={!target || bet <= 0 || busy} onClick={run}>
             {busy ? 'Girando…' : 'Aprimorar'}

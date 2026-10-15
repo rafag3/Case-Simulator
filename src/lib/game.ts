@@ -33,6 +33,14 @@ export function upgradeChance(bet: number, target: number): number {
   return Math.min(UPGRADE_MAX_CHANCE, (bet / target) * UPGRADE_EDGE);
 }
 
+/** Onde fica a faixa vencedora na volta de 0 a 100: no começo (0 a X) ou no fim (100 − X a 100). */
+export type UpgradeSide = 'low' | 'high';
+
+/** O roll (0 a 1) cai dentro da faixa vencedora? A chance é a mesma nos dois lados. */
+export function upgradeWins(roll: number, chance: number, side: UpgradeSide): boolean {
+  return side === 'low' ? roll < chance : roll >= 1 - chance;
+}
+
 export const CONTRACT_MIN = 3;
 export const CONTRACT_MAX = 10;
 
