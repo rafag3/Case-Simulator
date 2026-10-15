@@ -1,10 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Catalog } from '../types';
+import { COPIED_CASES, addCopiedItems } from './copied';
 import { CHEAP_PRICE, HIGH_ROLLER_CASES, HIGH_ROLLER_RETURN, curateCatalog } from './curate';
 
 const raw: Catalog = JSON.parse(readFileSync('public/catalog.json', 'utf8'));
-raw.items.forEach((it, id) => (it.id = id));
+raw.items.forEach((it, id) => {
+  it.id = id;
+  it.key = it.wear ? `${it.n} (${it.wear})` : it.n;
+});
+const before = raw.cases.length;
+addCopiedItems(raw);
 const byPrice = [...raw.items].sort((a, b) => a.p - b.p);
 const cur = curateCatalog(raw, byPrice);
 const ev = (drops: [number, number][]) => drops.reduce((s, [id, p]) => s + raw.items[id].p * p, 0);
@@ -34,6 +40,18 @@ describe('curadoria do catálogo', () => {
       expect(ev(c.drops) / c.price).toBeCloseTo(HIGH_ROLLER_RETURN, 2);
       expect(c.drops.every(([, p]) => p > 0)).toBe(true);
     }
+  });
+
+  it('Invisible: mesmas faixas do site, retorno de 75% e itens com imagem', () => {
+    const c = cur.cases.find((x) => x.id === 'copy-invisible')!;
+    expect(c).toBeTruthy();
+    expect(c.drops.length).toBe(COPIED_CASES[0].entries.length);
+    expect(c.drops.reduce((s, d) => s + d[1], 0)).toBeCloseTo(1, 6);
+    expect(ev(c.drops) / c.price).toBeCloseTo(0.75, 2);
+    const gungnir = c.drops.find(([id]) => raw.items[id].n === 'AWP | Gungnir')!;
+    expect(gungnir[1]).toBeCloseTo(0.0001005, 6);
+    expect(c.drops.every(([id]) => raw.items[id].img)).toBe(true);
+    expect(raw.cases.length).toBe(before);
   });
 
   it('ids continuam únicos', () => {

@@ -1,4 +1,5 @@
 import type { Catalog, CaseDef, Item } from '../types';
+import { addCopiedItems } from './copied';
 import { curateCatalog } from './curate';
 
 export interface Db {
@@ -21,6 +22,7 @@ export async function loadCatalog(): Promise<Db> {
     it.id = id;
     it.key = it.wear ? `${it.n} (${it.wear})` : it.n;
   });
+  addCopiedItems(raw);
   const byPrice = [...raw.items].sort((a, b) => a.p - b.p);
   const catalog = curateCatalog(raw, byPrice);
   db = {

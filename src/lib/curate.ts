@@ -1,4 +1,5 @@
 import type { Catalog, CaseDef, Drop, Item } from '../types';
+import { buildCopiedCases } from './copied';
 
 /** Abaixo deste preço a caixa conta como "barata" e entra na limpeza de repetidas. */
 export const CHEAP_PRICE = 5;
@@ -113,7 +114,7 @@ export function buildHighRollerCase(def: { id: string; name: string; price: numb
 /** Catálogo final: tira as baratas repetidas, soma as caras e ordena cada seção do mais barato ao mais caro. */
 export function curateCatalog(catalog: Catalog, byPrice: Item[]): Catalog {
   const extra = HIGH_ROLLER_CASES.map((d) => buildHighRollerCase(d, byPrice)).filter((c): c is CaseDef => !!c);
-  const cases = [...pruneCheapCases(catalog.cases, catalog.items), ...extra].sort(
+  const cases = [...pruneCheapCases(catalog.cases, catalog.items), ...extra, ...buildCopiedCases(catalog)].sort(
     (a, b) => a.price - b.price || a.name.localeCompare(b.name),
   );
   // seções também vão da mais barata à mais cara (pela mediana de preço)
